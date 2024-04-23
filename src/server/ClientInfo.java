@@ -6,7 +6,16 @@ public class ClientInfo
 {
     DataOutputStream writer;
     int posX,posY,direction;
+    String username;
 
+    public ClientInfo(DataOutputStream writer,String username,int posX,int posY,int direction)
+    {
+        this.writer=writer;
+        this.username=username;
+        this.posX=posX;
+        this.posY=posY;
+        this.direction=direction;
+    }
     public ClientInfo(DataOutputStream writer,int posX,int posY,int direction)
     {
         this.writer=writer;
@@ -15,6 +24,11 @@ public class ClientInfo
         this.direction=direction;
     }
 
+    //getters and setters
+    public String getUsername()
+    {
+        return username;
+    }
     public void setPosX(int x)
     {
         posX=x;

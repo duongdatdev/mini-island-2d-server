@@ -23,10 +23,25 @@ public class Protocol {
         message="ID"+id;
         return message;
     }
+    public String IDPacket(int id,String username)
+    {
+        message="ID"+id+","+username;
+        return message;
+    }
     public String NewClientPacket(int x,int y,int dir,int id)
     {
         message="NewClient"+x+","+y+"-"+dir+"|"+id;
         return message;   
+    }
+    public String NewClientPacket(String username,int x,int y,int dir,int id)
+    {
+        message="NewClient"+username+","+x+"-"+y+"|"+dir+"!"+id;
+        return message;
+    }
+    public String LoginPacket(String status,int id, String username,int x,int y)
+    {
+        message="Login"+status+","+id+"-"+username+"|"+x+"+"+y;
+        return message;
     }
     
 }
