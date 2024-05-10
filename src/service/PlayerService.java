@@ -7,20 +7,24 @@ public class PlayerService implements Service{
     public PlayerService() {
         this.playerDAOImp = new PlayerDAOImp();
     }
-    public String registerPlayer(String name, String email, String password) {
-        String mgs = playerDAOImp.registerPlayer(name, email, password);
-        if (mgs.equals("User registered successfully")) {
-            return "success";
+    public String register(String username, String email, String password) {
+        String msg = playerDAOImp.registerPlayer(username, email, password);
+        String status;
+        if (msg.equals("User registered successfully")) {
+            status = "Success|";
         } else {
-            return "failed";
+            status = "Failed|";
         }
+        return status + msg;
     }
-    public String loginPlayer(String username, String password) {
-        String mgs = playerDAOImp.loginPlayer(username, password);
-        if (mgs.equals("Login successful")) {
-            return "success";
+    public String login(String username, String password) {
+        String msg = playerDAOImp.loginPlayer(username, password);
+        String status;
+        if (msg.equals("Login successful")) {
+            status = "Success|";
         } else {
-            return "failed";
+            status = "Failed|";
         }
+        return status + msg;
     }
 }

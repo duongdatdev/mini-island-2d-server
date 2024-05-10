@@ -48,6 +48,8 @@ public class ServerGUI extends JFrame implements ActionListener {
             server = new Server();
         } catch (SocketException ex) {
             ex.printStackTrace();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
 
         setVisible(true);
