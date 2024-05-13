@@ -16,14 +16,6 @@ public class ClientInfo
         this.posY=posY;
         this.direction=direction;
     }
-    public ClientInfo(DataOutputStream writer,int posX,int posY,int direction)
-    {
-        this.writer=writer;
-        this.posX=posX;
-        this.posY=posY;
-        this.direction=direction;
-    }
-
     //getters and setters
     public String getUsername()
     {

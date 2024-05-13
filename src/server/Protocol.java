@@ -30,13 +30,13 @@ public class Protocol {
         return message;
     }
 
-    public String LoginPacket(String status) {
-        message = "Login" + status;
+    public String LoginPacket(String status,String msg) {
+        message = "Login," + status + "," + msg;
         return message;
     }
 
     public String registerPacket(String status, String msg) {
-        message = "Register" + status + "|" + msg;
+        message = "Register," + status + "," + msg;
         return message;
     }
 }
