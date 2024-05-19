@@ -25,8 +25,8 @@ public class Protocol {
         return message;
     }
 
-    public String NewClientPacket(String username, int x, int y, int dir, int id) {
-        message = "NewClient" + username + "," + x + "-" + y + "|" + dir + "!" + id;
+    public String NewClientPacket(String username, int x, int y, int dir, int id, String map) {
+        message = "NewClient" + username + "," + x + "-" + y + "|" + dir + "!" + id + "#" + map;
         return message;
     }
 
@@ -37,6 +37,16 @@ public class Protocol {
 
     public String registerPacket(String status, String msg) {
         message = "Register," + status + "," + msg;
+        return message;
+    }
+
+    public String leaderBoardPacket(String msg) {
+        message = "Leaderboard" + msg;
+        return message;
+    }
+
+    public String mazeMapPacket(String msg) {
+        message = "MazeMap," + msg;
         return message;
     }
 }

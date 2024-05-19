@@ -1,11 +1,15 @@
 package service;
 
 import dao.PlayerDAOImp;
+import leaderBoard.LeaderBoardDAO;
 
 public class PlayerService implements Service{
     private PlayerDAOImp playerDAOImp;
+    private LeaderBoardDAO leaderBoardDAO;
+
     public PlayerService() {
         this.playerDAOImp = new PlayerDAOImp();
+        this.leaderBoardDAO = new LeaderBoardDAO();
     }
     public String register(String username, String email, String password) {
         String msg = playerDAOImp.registerPlayer(username, email, password);
@@ -26,5 +30,10 @@ public class PlayerService implements Service{
             status = "Failed|";
         }
         return status + msg;
+    }
+
+    public String leaderBoard() {
+        System.out.println("Getting top 20");
+        return leaderBoardDAO.getTop20();
     }
 }

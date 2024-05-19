@@ -29,6 +29,7 @@ public class Server extends Thread {
     private boolean running = true;
 
     private PlayerService playerService;
+
     private ExecutorService executorService;
 
     public Server() throws SocketException, IOException {
@@ -161,7 +162,6 @@ public class Server extends Thread {
 
         } else if (sentence.startsWith("Hello")) {
 
-            System.out.println("Hello" + clientSocket.getInetAddress().getHostAddress() + " " + clientSocket.getPort());
             try {
                 writer = new DataOutputStream(clientSocket.getOutputStream());
             } catch (IOException e) {
@@ -175,14 +175,14 @@ public class Server extends Thread {
             int x = 1000;
             int y = 1000;
 
-            try {
-                BroadCastMessage(protocol.NewClientPacket(username, x, y, -1, playerOnline.size() + 1));
-                sendAllClients(writer);
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
+            BroadCastMessage(protocol.NewClientPacket(username, x, y, -1, playerOnline.size() + 1,"lobby"));
 
-            playerOnline.add(new ClientInfo(writer, username, x, y, -1));
+            System.out.println(protocol.leaderBoardPacket(playerService.leaderBoard()));
+            sendToClient(protocol.leaderBoardPacket(playerService.leaderBoard()));
+
+            sendAllClientsInMap(writer, "lobby");
+
+            playerOnline.add(new ClientInfo(writer, username, x, y, -1,"lobby"));
 
         } else if (sentence.startsWith("Update")) {
 
@@ -194,63 +194,72 @@ public class Server extends Thread {
             int dir = Integer.parseInt(parts[4]);
             int id = Integer.parseInt(parts[5]);
 
-            if (id > 0 && id <= playerOnline.size() && playerOnline.get(id - 1) != null) {
-
-                playerOnline.get(id - 1).setPosX(x);
-                playerOnline.get(id - 1).setPosY(y);
-                playerOnline.get(id - 1).setDirection(dir);
-
-                try {
-                    BroadCastMessage(sentence);
-                } catch (IOException ex) {
-                    ex.printStackTrace();
+            //Update location player
+            for (ClientInfo player : playerOnline) {
+                if (player != null && player.getUsername().equals(username)) {
+                    player.setPosX(x);
+                    player.setPosY(y);
+                    player.setDirection(dir);
+                    break;
                 }
-
             }
+            BroadCastMessage(sentence);
+        } else if (sentence.startsWith("TeleportToMap")) {
+            String[] parts = sentence.split(",");
 
+            String username = parts[1];
+            String map = parts[2];
+            int x = Integer.parseInt(parts[3]);
+            int y = Integer.parseInt(parts[4]);
+
+            ClientInfo p = null;
+            for (ClientInfo player : playerOnline) {
+                if (player != null && player.getUsername().equals(username)) {
+                    player.setPosX(x);
+                    player.setPosY(y);
+                    player.setMap(map);
+                    p = player;
+                    break;
+                }
+            }
+            BroadCastMessage(protocol.NewClientPacket(username,
+                    x,
+                    y,
+                    -1,
+                    playerOnline.size() + 1,
+                    p.getMap()));
+
+            sendAllClientsInMap(p.getWriterStream(), map);
+
+            BroadCastMessage(sentence);
         } else if (sentence.startsWith("Chat")) {
 
-            try {
-                BroadCastMessage(sentence);
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
+            BroadCastMessage(sentence);
 
         } else if (sentence.startsWith("Shot")) {
 
-            try {
-                BroadCastMessage(sentence);
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
+            BroadCastMessage(sentence);
 
         } else if (sentence.startsWith("Remove")) {
 
             int id = Integer.parseInt(sentence.substring(6));
 
-            try {
-                BroadCastMessage(sentence);
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
+            BroadCastMessage(sentence);
 
-            playerOnline.set(id - 1, null);
-
+            playerOnline.remove(id);
         } else if (sentence.startsWith("Exit")) {
 
-            int id = Integer.parseInt(sentence.substring(4));
+            String username = sentence.substring(4);
 
-            try {
-                BroadCastMessage(sentence);
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
+            System.out.println("Exit" + username);
 
-            try {
-                if (playerOnline.get(id - 1) != null && id > 0 && id <= playerOnline.size())
-                    playerOnline.set(id - 1, null);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
+            BroadCastMessage(sentence);
+
+            for (ClientInfo player : playerOnline) {
+                if (player != null && player.getUsername().equals(username)) {
+                    playerOnline.remove(player);
+                    break;
+                }
             }
 
         } else if (sentence.startsWith("Exit Auth")) {
@@ -264,15 +273,24 @@ public class Server extends Thread {
         }
     }
 
+    private void handlePlayerExit(String player) {
+
+        BroadCastMessage("Exit" + player);
+
+    }
 
     public void stopServer() throws IOException {
         running = false;
     }
 
-    public void BroadCastMessage(String mess) throws IOException {
+    public void BroadCastMessage(String mess) {
         for (ClientInfo clientInfo : playerOnline) {
-            if (clientInfo != null) {
-                clientInfo.getWriterStream().writeUTF(mess);
+            if (clientInfo != null && clientInfo.getWriterStream() != null) {
+                try {
+                    clientInfo.getWriterStream().writeUTF(mess);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
             }
         }
     }
@@ -289,17 +307,15 @@ public class Server extends Thread {
         }
     }
 
-    public void sendAllClients(DataOutputStream writer) {
-        String username;
-        int x, y, dir;
+    public void sendAllClientsInMap(DataOutputStream writer, String map) {
         for (int i = 0; i < playerOnline.size(); i++) {
-            if (playerOnline.get(i) != null) {
-                username = playerOnline.get(i).getUsername();
-                x = playerOnline.get(i).getX();
-                y = playerOnline.get(i).getY();
-                dir = playerOnline.get(i).getDir();
+            if (playerOnline.get(i) != null && playerOnline.get(i).getMap().equals(map)) {
+                String username = playerOnline.get(i).getUsername();
+                int x = playerOnline.get(i).getX();
+                int y = playerOnline.get(i).getY();
+                int dir = playerOnline.get(i).getDir();
                 try {
-                    writer.writeUTF(protocol.NewClientPacket(username, x, y, dir, i + 1));
+                    writer.writeUTF(protocol.NewClientPacket(username, x, y,                                                                                                                                                                                                                                                                    dir, i + 1, map));
                     writer.flush();
                 } catch (IOException ex) {
 
@@ -308,6 +324,7 @@ public class Server extends Thread {
             }
         }
     }
+
 
     public ArrayList<ClientInfo> getPlayerOnline() {
         return playerOnline;

@@ -7,15 +7,18 @@ public class ClientInfo
     DataOutputStream writer;
     int posX,posY,direction;
     String username;
+    String map;
 
-    public ClientInfo(DataOutputStream writer,String username,int posX,int posY,int direction)
+    public ClientInfo(DataOutputStream writer,String username,int posX,int posY,int direction,String map)
     {
         this.writer=writer;
         this.username=username;
         this.posX=posX;
         this.posY=posY;
         this.direction=direction;
+        this.map=map;
     }
+
     //getters and setters
     public String getUsername()
     {
@@ -48,5 +51,13 @@ public class ClientInfo
     public int getDir()
     {
         return direction;
+    }
+
+    public String getMap() {
+        return map;
+    }
+
+    public void setMap(String map) {
+        this.map = map;
     }
 }
