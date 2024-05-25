@@ -46,7 +46,7 @@ public class Protocol {
     }
 
     public String mazeMapPacket(String msg) {
-        message = "MazeMap," + msg;
+        message = "Maze" + msg;
         return message;
     }
 }

@@ -1,5 +1,6 @@
 package server;
 
+import map.MazeGen;
 import service.PlayerService;
 
 import java.io.DataInputStream;
@@ -9,6 +10,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.ArrayList;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 
 public class Server extends Thread {
@@ -31,6 +33,10 @@ public class Server extends Thread {
     private PlayerService playerService;
 
     private ExecutorService executorService;
+
+    //maze
+    private MazeGen mazeGen = new MazeGen(10,20);
+    private boolean winMaze = true;
 
     public Server() throws SocketException, IOException {
         playerOnline = new ArrayList<ClientInfo>();
@@ -192,7 +198,6 @@ public class Server extends Thread {
             int x = Integer.parseInt(parts[2]);
             int y = Integer.parseInt(parts[3]);
             int dir = Integer.parseInt(parts[4]);
-            int id = Integer.parseInt(parts[5]);
 
             //Update location player
             for (ClientInfo player : playerOnline) {
@@ -222,6 +227,15 @@ public class Server extends Thread {
                     break;
                 }
             }
+
+//            if(map.equals("Maze")){
+//                MazeGen mazeGen = new MazeGen(10,20);
+//                mazeGen.solve();
+////                mazeGen.draw();
+//
+//                sendToClient(protocol.mazeMapPacket(mazeGen.toString()));
+//            }
+
             BroadCastMessage(protocol.NewClientPacket(username,
                     x,
                     y,
@@ -232,6 +246,25 @@ public class Server extends Thread {
             sendAllClientsInMap(p.getWriterStream(), map);
 
             BroadCastMessage(sentence);
+        } else if (sentence.startsWith("EnterMaze")) {
+            String username = sentence.substring(9);
+
+            for (ClientInfo player : playerOnline) {
+                if (player != null && player.getUsername().equals(username)) {
+                    player.setMap("Loading");
+                    break;
+                }
+            }
+            if(winMaze){
+                mazeGen = new MazeGen(10,20);
+                mazeGen.solve();
+                winMaze = false;
+            }
+
+            sendToClient(protocol.mazeMapPacket(mazeGen.toString()));
+
+            BroadCastMessage(sentence);
+
         } else if (sentence.startsWith("Chat")) {
 
             BroadCastMessage(sentence);
