@@ -35,8 +35,8 @@ public class Server extends Thread {
     private ExecutorService executorService;
 
     //maze
-    private MazeGen mazeGen = new MazeGen(10,20);
-    private boolean winMaze = true;
+    private MazeGen mazeGen = new MazeGen(10, 20);
+    private boolean winMaze = false;
 
     public Server() throws SocketException, IOException {
         playerOnline = new ArrayList<ClientInfo>();
@@ -181,14 +181,14 @@ public class Server extends Thread {
             int x = 1000;
             int y = 1000;
 
-            BroadCastMessage(protocol.NewClientPacket(username, x, y, -1, playerOnline.size() + 1,"lobby"));
+            BroadCastMessage(protocol.NewClientPacket(username, x, y, -1, playerOnline.size() + 1, "lobby"));
 
             System.out.println(protocol.leaderBoardPacket(playerService.leaderBoard()));
             sendToClient(protocol.leaderBoardPacket(playerService.leaderBoard()));
 
             sendAllClientsInMap(writer, "lobby");
 
-            playerOnline.add(new ClientInfo(writer, username, x, y, -1,"lobby"));
+            playerOnline.add(new ClientInfo(writer, username, x, y, -1, "lobby"));
 
         } else if (sentence.startsWith("Update")) {
 
@@ -206,6 +206,9 @@ public class Server extends Thread {
                     player.setPosY(y);
                     player.setDirection(dir);
                     break;
+                }
+                if (player != null && !player.getUsername().equals(username)) {
+                    sendToClient(player.getWriterStream(), sentence);
                 }
             }
             BroadCastMessage(sentence);
@@ -228,14 +231,6 @@ public class Server extends Thread {
                 }
             }
 
-//            if(map.equals("Maze")){
-//                MazeGen mazeGen = new MazeGen(10,20);
-//                mazeGen.solve();
-////                mazeGen.draw();
-//
-//                sendToClient(protocol.mazeMapPacket(mazeGen.toString()));
-//            }
-
             BroadCastMessage(protocol.NewClientPacket(username,
                     x,
                     y,
@@ -249,22 +244,23 @@ public class Server extends Thread {
         } else if (sentence.startsWith("EnterMaze")) {
             String username = sentence.substring(9);
 
+            ClientInfo p = null;
             for (ClientInfo player : playerOnline) {
                 if (player != null && player.getUsername().equals(username)) {
+                    p = player;
                     player.setMap("Loading");
                     break;
                 }
             }
-            if(winMaze){
-                mazeGen = new MazeGen(10,20);
+            if (!winMaze) {
+                mazeGen = new MazeGen(10, 20);
                 mazeGen.solve();
-                winMaze = false;
+                winMaze = true;
             }
 
-            sendToClient(protocol.mazeMapPacket(mazeGen.toString()));
+            assert p != null;
 
-            BroadCastMessage(sentence);
-
+            sendToClient(p.getWriterStream(),protocol.mazeMapPacket(mazeGen.toString()));
         } else if (sentence.startsWith("Chat")) {
 
             BroadCastMessage(sentence);
@@ -340,6 +336,18 @@ public class Server extends Thread {
         }
     }
 
+    public void sendToClient(DataOutputStream writer, String message) {
+        if (message.equals("exit"))
+            System.exit(0);
+        else {
+            try {
+                writer.writeUTF(message);
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
+
     public void sendAllClientsInMap(DataOutputStream writer, String map) {
         for (int i = 0; i < playerOnline.size(); i++) {
             if (playerOnline.get(i) != null && playerOnline.get(i).getMap().equals(map)) {
@@ -348,7 +356,7 @@ public class Server extends Thread {
                 int y = playerOnline.get(i).getY();
                 int dir = playerOnline.get(i).getDir();
                 try {
-                    writer.writeUTF(protocol.NewClientPacket(username, x, y,                                                                                                                                                                                                                                                                    dir, i + 1, map));
+                    writer.writeUTF(protocol.NewClientPacket(username, x, y, dir, i + 1, map));
                     writer.flush();
                 } catch (IOException ex) {
 
