@@ -10,9 +10,14 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.ArrayList;
-import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 
+/**
+ * This class is responsible for handling client connections and managing the game state.
+ * It listens for incoming connections from clients and creates a new thread to handle each client.
+ * It also updates the game state based on the messages received from the clients.
+ * It is the main class for the server application.
+ */
 public class Server extends Thread {
 
     /**
@@ -34,9 +39,9 @@ public class Server extends Thread {
 
     private ExecutorService executorService;
 
-    //maze
+    //Maze gen
     private MazeGen mazeGen = new MazeGen(10, 20);
-    private boolean winMaze = false;
+    private boolean winMaze = true;
 
     public Server() throws SocketException, IOException {
         playerOnline = new ArrayList<ClientInfo>();
@@ -65,6 +70,8 @@ public class Server extends Thread {
     }
 
     private void handleClient(Socket clientSocket) {
+        int defaultX = 1645;
+        int defaultY = 754;
         try {
             reader = new DataInputStream(clientSocket.getInputStream());
         } catch (IOException ex) {
@@ -74,6 +81,7 @@ public class Server extends Thread {
 
         try {
             sentence = reader.readUTF();
+            System.out.println(sentence);
         } catch (IOException ex) {
             ex.printStackTrace();
         }
@@ -178,17 +186,14 @@ public class Server extends Thread {
 
             sendToClient(protocol.IDPacket(playerOnline.size() + 1, username));
 
-            int x = 1000;
-            int y = 1000;
-
-            BroadCastMessage(protocol.NewClientPacket(username, x, y, -1, playerOnline.size() + 1, "lobby"));
+            BroadCastMessage(protocol.NewClientPacket(username, defaultX, defaultY, -1, playerOnline.size() + 1, "lobby"));
 
             System.out.println(protocol.leaderBoardPacket(playerService.leaderBoard()));
             sendToClient(protocol.leaderBoardPacket(playerService.leaderBoard()));
 
             sendAllClientsInMap(writer, "lobby");
 
-            playerOnline.add(new ClientInfo(writer, username, x, y, -1, "lobby"));
+            playerOnline.add(new ClientInfo(writer, username, defaultX, defaultY, -1, "lobby"));
 
         } else if (sentence.startsWith("Update")) {
 
@@ -200,18 +205,26 @@ public class Server extends Thread {
             int dir = Integer.parseInt(parts[4]);
 
             //Update location player
+            ClientInfo p = null;
             for (ClientInfo player : playerOnline) {
                 if (player != null && player.getUsername().equals(username)) {
                     player.setPosX(x);
                     player.setPosY(y);
                     player.setDirection(dir);
+
+                    p = player;
                     break;
                 }
                 if (player != null && !player.getUsername().equals(username)) {
                     sendToClient(player.getWriterStream(), sentence);
                 }
             }
-            BroadCastMessage(sentence);
+
+            for (ClientInfo player : playerOnline) {
+                if (player != null && !player.getUsername().equals(username) && player.getMap().equals(p.getMap())) {
+                    sendToClient(player.getWriterStream(), sentence);
+                }
+            }
         } else if (sentence.startsWith("TeleportToMap")) {
             String[] parts = sentence.split(",");
 
@@ -252,15 +265,50 @@ public class Server extends Thread {
                     break;
                 }
             }
-            if (!winMaze) {
+            if (winMaze) {
                 mazeGen = new MazeGen(10, 20);
+//                mazeGen = new MazeGen(6, 6);
                 mazeGen.solve();
-                winMaze = true;
+                winMaze = false;
             }
 
             assert p != null;
 
-            sendToClient(p.getWriterStream(),protocol.mazeMapPacket(mazeGen.toString()));
+            sendToClient(p.getWriterStream(), protocol.mazeMapPacket(mazeGen.toString()));
+        } else if (sentence.startsWith("WinMaze")) {
+            String username = sentence.substring(7);
+
+            ClientInfo p = null;
+            for (ClientInfo player : playerOnline) {
+                if (player != null && player.getUsername().equals(username)) {
+                    p = player;
+                    player.setMap("lobby");
+                    break;
+                }
+            }
+
+            assert p != null;
+
+
+            //Send to all player in lobby that player win maze
+            BroadCastMessage(protocol.NewClientPacket(username,
+                    defaultX,
+                    defaultY,
+                    -1,
+                    playerOnline.size() + 1,
+                    p.getMap()));
+
+            //Update score
+            playerService.updatePoint(username, 50);
+
+            //send to win player all player in lobby
+            sendAllClientsInMap(p.getWriterStream(), "lobby");
+
+            //teleport all player in maze to lobby
+            teleportAllPlayerInMapToMap("maze", "lobby");
+
+            winMaze = true;
+
         } else if (sentence.startsWith("Chat")) {
 
             BroadCastMessage(sentence);
@@ -282,14 +330,14 @@ public class Server extends Thread {
 
             System.out.println("Exit" + username);
 
-            BroadCastMessage(sentence);
-
             for (ClientInfo player : playerOnline) {
                 if (player != null && player.getUsername().equals(username)) {
                     playerOnline.remove(player);
                     break;
                 }
             }
+            BroadCastMessage(sentence);
+
 
         } else if (sentence.startsWith("Exit Auth")) {
             try {
@@ -298,6 +346,23 @@ public class Server extends Thread {
                     reader.close();
             } catch (IOException e) {
                 throw new RuntimeException(e);
+            }
+        }
+    }
+
+    public void teleportAllPlayerInMapToMap(String map, String map2) {
+        for (ClientInfo player : playerOnline) {
+            if (player.getMap().equals(map)) {
+                player.setMap(map2);
+
+                BroadCastMessage(protocol.NewClientPacket(player.getUsername(),
+                        1645,
+                        754,
+                        -1,
+                        playerOnline.size() + 1,
+                        player.getMap()));
+
+                sendAllClientsInMap(player.getWriterStream(), map2);
             }
         }
     }

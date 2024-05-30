@@ -116,4 +116,45 @@ public class PlayerDAOImp implements PlayerDAO {
         }
         return false;
     }
+
+    /**
+     * Update point of a user
+     * @param username username of the user
+     * @param pointPlus point to be added
+     * @return String message
+     */
+    public String updatePoint(String username,int pointPlus) {
+        this.conn = DatabaseConnection.getConnection();
+        try {
+            String query = "SELECT points FROM Users WHERE username=?";
+            PreparedStatement preparedStatement = conn.prepareStatement(query);
+            preparedStatement.setString(1, username);
+
+            // get current point
+            ResultSet resultSet = preparedStatement.executeQuery();
+
+            if (resultSet.next()) {
+                int point = resultSet.getInt("points");
+                int newPoint = point + pointPlus;
+
+                // update point
+                String updateQuery = "UPDATE Users SET points=? WHERE username=?";
+                PreparedStatement updateStatement = conn.prepareStatement(updateQuery);
+                updateStatement.setInt(1, newPoint);
+                updateStatement.setString(2, username);
+
+                int rowsAffected = updateStatement.executeUpdate();
+
+                if (rowsAffected > 0) {
+                     return "point updated!";
+                } else {
+                    return "error update point";
+                }
+
+            }
+        } catch (Exception e) {
+            return "error update point";
+        }
+        return "error update point";
+    }
 }

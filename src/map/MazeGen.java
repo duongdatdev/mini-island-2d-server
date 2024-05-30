@@ -330,8 +330,7 @@ public class MazeGen {
             for (int x = 0; x < gridDimensionX; x++) {
                 if (y == 0) {
                     lobby.append("#");
-                }
-                else if (x == 0 || x == gridDimensionX - 1) {
+                } else if (x == 0 || x == gridDimensionX - 1) {
                     lobby.append("#");
                 } else {
                     lobby.append(" ");
@@ -342,12 +341,20 @@ public class MazeGen {
         return lobby.toString();
     }
 
-    public String drawFinishingLine(){
+    public String drawFinishingLine() {
         StringBuilder finish = new StringBuilder();
-        for (int x = 0; x < gridDimensionX; x++) {
-            finish.append("-");
+
+        for (int y = 0; y < 3; y++){
+            for (int x = 0; x < gridDimensionX; x++) {
+                if (y == 0){
+                    finish.append("-");
+                }
+                else {
+                    finish.append(" ");
+                }
+            }
+            finish.append("/");
         }
-        finish.append("/");
         return finish.toString();
     }
 
@@ -359,11 +366,14 @@ public class MazeGen {
         output.append(drawLobby());
         drawObstacle();
         for (int y = 0; y < gridDimensionY; y++) {
+
             for (int x = 0; x < gridDimensionX; x++) {
                 output.append(grid[x][y]);
             }
+
             output.append("/");
         }
+
         output.append(drawFinishingLine());
         return output.toString();
     }
