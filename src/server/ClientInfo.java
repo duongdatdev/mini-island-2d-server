@@ -8,6 +8,7 @@ public class ClientInfo
     int posX,posY,direction;
     String username;
     String map;
+    boolean isAlive=true;
 
     public ClientInfo(DataOutputStream writer,String username,int posX,int posY,int direction,String map)
     {
@@ -55,6 +56,14 @@ public class ClientInfo
 
     public String getMap() {
         return map;
+    }
+
+    public boolean isAlive() {
+        return isAlive;
+    }
+
+    public void setAlive(boolean alive) {
+        isAlive = alive;
     }
 
     public void setMap(String map) {

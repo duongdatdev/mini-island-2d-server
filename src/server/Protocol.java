@@ -103,7 +103,12 @@ public class Protocol {
     }
 
     public String teleportPacket(String username, String map, int x, int y) {
-        message = "TeleportToMap," + username + "," + map + "," + x + "," + y;
+        message = "TeleportMap," + username + "," + map + "," + x + "," + y;
+        return message;
+    }
+
+    public String removePlayerPacket(String username) {
+        message = "Exit" + username;
         return message;
     }
 }

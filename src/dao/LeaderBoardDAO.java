@@ -1,4 +1,4 @@
-package leaderBoard;
+package dao;
 
 import databaseConnect.DatabaseConnection;
 
@@ -19,7 +19,7 @@ public class LeaderBoardDAO {
      */
     public String getTop20() {
         try (Connection conn = DatabaseConnection.getConnection()) {
-            String query = "SELECT username, score FROM users ORDER BY score DESC LIMIT 20";
+            String query = "SELECT username, points FROM users ORDER BY points DESC LIMIT 20";
             try (PreparedStatement preparedStatement = conn.prepareStatement(query);
                  ResultSet resultSet = preparedStatement.executeQuery()) {
 
