@@ -13,7 +13,7 @@ public class DatabaseConnection {
         //change your database here or use my database
         dataSource.setUrl("jdbc:mysql://localhost:3306/miniisland");
         dataSource.setUsername("root");
-        dataSource.setPassword("");
+        dataSource.setPassword("secret");
         dataSource.setInitialSize(5); // Initial number of connections
         dataSource.setMaxTotal(20);   // Maximum number of connections
     }

@@ -4,10 +4,10 @@ import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
-import java.net.SocketException;
 
 /**
- * This class is the entry point for the server application.
+ * This class provides a GUI for the WebSocket game server.
+ * Updated to use WebSocketGameServer instead of old TCP Server.
  *
  * @author DuongDat
  */
@@ -17,13 +17,13 @@ public class ServerGUI extends JFrame implements ActionListener {
     private JButton stopServerButton;
     private JLabel statusLabel;
 
-    private Server server;
+    private WebSocketGameServer server;
 
     /**
      * Creates a new instance of ServerGUI
      */
     public ServerGUI() {
-        setTitle("Game Server GUI");
+        setTitle("WebSocket Game Server GUI");
         setBounds(350, 200, 300, 200);
 
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -43,29 +43,25 @@ public class ServerGUI extends JFrame implements ActionListener {
         getContentPane().add(statusLabel);
         getContentPane().add(startServerButton);
         getContentPane().add(stopServerButton);
-        try {
-
-            server = new Server();
-        } catch (SocketException ex) {
-            ex.printStackTrace();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        
+        // Initialize WebSocket server on port 11111
+        server = new WebSocketGameServer(11111);
 
         setVisible(true);
     }
 
     public void actionPerformed(ActionEvent e) {
         if (e.getSource() == startServerButton) {
-            server.start();
+            // Start server in a new thread to avoid blocking the GUI
+            new Thread(() -> {
+                server.startServer();
+            }).start();
             startServerButton.setEnabled(false);
-            statusLabel.setText("Server is running.....");
-
+            statusLabel.setText("WebSocket Server is running on port 11111");
         }
 
         if (e.getSource() == stopServerButton) {
             try {
-
                 server.stopServer();
                 statusLabel.setText("Server is stopping.....");
                 try {
@@ -74,7 +70,7 @@ public class ServerGUI extends JFrame implements ActionListener {
                     ex.printStackTrace();
                 }
                 System.exit(0);
-            } catch (IOException ex) {
+            } catch (IOException | InterruptedException ex) {
                 ex.printStackTrace();
             }
         }

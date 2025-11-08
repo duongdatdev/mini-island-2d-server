@@ -1,18 +1,18 @@
 package server;
 
-import java.io.DataOutputStream;
+import org.java_websocket.WebSocket;
 
 public class ClientInfo
 {
-    DataOutputStream writer;
+    WebSocket webSocket;
     int posX,posY,direction;
     String username;
     String map;
     boolean isAlive=true;
 
-    public ClientInfo(DataOutputStream writer,String username,int posX,int posY,int direction,String map)
+    public ClientInfo(WebSocket webSocket,String username,int posX,int posY,int direction,String map)
     {
-        this.writer=writer;
+        this.webSocket=webSocket;
         this.username=username;
         this.posX=posX;
         this.posY=posY;
@@ -37,9 +37,9 @@ public class ClientInfo
     {
         direction=dir;
     }
-    public DataOutputStream getWriterStream()
+    public WebSocket getWebSocket()
     {
-        return writer;
+        return webSocket;
     }
     public int getX()
     {

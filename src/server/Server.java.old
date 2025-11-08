@@ -250,7 +250,7 @@ public class Server extends Thread {
 
         playerOnline.stream()
                 .filter(player -> !player.getUsername().equals(username))
-                .forEach(player -> sendToClient(player.getWriterStream(), finalSentence));
+                .forEach(player -> sendToClient(player.getWebSocket(), finalSentence));
     }
 
     private void handleTeleportToMap(String sentence) {
@@ -274,7 +274,7 @@ public class Server extends Thread {
 
         BroadCastMessage(protocol.NewClientPacket(username, x, y, -1, playerOnline.size() + 1, p.getMap()));
 
-        sendAllClientsInMap(p.getWriterStream(), map);
+        sendAllClientsInMap(p.getWebSocket(), map);
 
         BroadCastMessage(sentence);
     }
@@ -298,7 +298,7 @@ public class Server extends Thread {
 
         assert p != null;
 
-        sendToClient(p.getWriterStream(), protocol.mazeMapPacket(mazeGen.toString()));
+        sendToClient(p.getWebSocket(), protocol.mazeMapPacket(mazeGen.toString()));
     }
 
     private void handleWinMaze(String sentence) {
@@ -325,7 +325,7 @@ public class Server extends Thread {
         sendLeaderBoardToAllClient();
 
         //send to win player all player in lobby
-        sendAllClientsInMap(p.getWriterStream(), "lobby");
+        sendAllClientsInMap(p.getWebSocket(), "lobby");
 
         //teleport all player in maze to lobby
         teleportAllPlayerInMapToMap("maze", "lobby");
@@ -492,11 +492,11 @@ public class Server extends Thread {
             if (player.getMap().equals(map)) {
                 player.setMap(map2);
 
-                sendToClient(player.getWriterStream(), protocol.teleportPacket(player.getUsername(), map2, 1645, 754));
+                sendToClient(player.getWebSocket(), protocol.teleportPacket(player.getUsername(), map2, 1645, 754));
 
                 BroadCastMessage(protocol.NewClientPacket(player.getUsername(), 1645, 754, -1, playerOnline.size() + 1, player.getMap()));
 
-                sendAllClientsInMap(player.getWriterStream(), map2);
+                sendAllClientsInMap(player.getWebSocket(), map2);
             }
         }
     }
@@ -511,10 +511,10 @@ public class Server extends Thread {
 
     public void BroadCastMessage(String mess) {
         for (ClientInfo clientInfo : playerOnline) {
-            if (clientInfo != null && clientInfo.getWriterStream() != null) {
+            if (clientInfo != null && clientInfo.getWebSocket() != null) {
                 try {
-                    clientInfo.getWriterStream().writeUTF(mess);
-                } catch (IOException e) {
+                    clientInfo.getWebSocket().send(mess);
+                } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
             }
@@ -534,32 +534,32 @@ public class Server extends Thread {
 
     public void sendLeaderBoardToAllClient() {
         for (ClientInfo clientInfo : playerOnline) {
-            if (clientInfo != null && clientInfo.getWriterStream() != null) {
-                sendLeaderBoardToClient(clientInfo.getWriterStream());
+            if (clientInfo != null && clientInfo.getWebSocket() != null) {
+                sendLeaderBoardToClient(clientInfo.getWebSocket());
             }
         }
     }
 
-    public void sendLeaderBoardToClient(DataOutputStream writer) {
+    public void sendLeaderBoardToClient(org.java_websocket.WebSocket conn) {
         try {
-            writer.writeUTF(protocol.leaderBoardPacket(playerService.leaderBoard()));
-        } catch (IOException e) {
+            conn.send(protocol.leaderBoardPacket(playerService.leaderBoard()));
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    public void sendToClient(DataOutputStream writer, String message) {
+    public void sendToClient(org.java_websocket.WebSocket conn, String message) {
         if (message.equals("exit")) System.exit(0);
         else {
             try {
-                writer.writeUTF(message);
-            } catch (IOException ex) {
+                conn.send(message);
+            } catch (Exception ex) {
                 ex.printStackTrace();
             }
         }
     }
 
-    public void sendAllClientsInMap(DataOutputStream writer, String map) {
+    public void sendAllClientsInMap(org.java_websocket.WebSocket conn, String map) {
         for (int i = 0; i < playerOnline.size(); i++) {
             if (playerOnline.get(i) != null && playerOnline.get(i).getMap().equals(map)) {
                 String username = playerOnline.get(i).getUsername();
