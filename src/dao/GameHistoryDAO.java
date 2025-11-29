@@ -9,24 +9,24 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 
 /**
- * DAO để quản lý lịch sử game và điểm số
+ * DAO for managing game history and scores
  */
 public class GameHistoryDAO {
     
     /**
-     * Lưu kết quả game PvP vào database
-     * @param username tên người chơi
-     * @param goldEarned số gold kiếm được
-     * @param kills số quái giết được
-     * @param pointsEarned điểm được cộng vào leaderboard
-     * @return true nếu thành công
+     * Save PvP game result to database
+     * @param username player name
+     * @param goldEarned gold earned
+     * @param kills number of monsters killed
+     * @param pointsEarned points added to leaderboard
+     * @return true if successful
      */
     public boolean savePvpGameResult(String username, int goldEarned, int kills, int pointsEarned) {
         Connection conn = DatabaseConnection.getConnection();
         if (conn == null) return false;
         
         try {
-            // Tạo bảng nếu chưa tồn tại
+            // Create table if not exists
             createGameHistoryTableIfNotExists(conn);
             
             String query = "INSERT INTO game_history (username, game_mode, score, kills, points_earned, played_at) " +
@@ -40,7 +40,7 @@ public class GameHistoryDAO {
             int rows = stmt.executeUpdate();
             stmt.close();
             
-            // Cập nhật thống kê PvP
+            // Update PvP stats
             updatePvpStats(conn, username, goldEarned, kills);
             
             return rows > 0;
@@ -53,20 +53,20 @@ public class GameHistoryDAO {
     }
     
     /**
-     * Lưu kết quả game Maze vào database
-     * @param username tên người chơi
-     * @param score điểm số
-     * @param coinsCollected số coin thu thập
-     * @param won có thắng không
-     * @param pointsEarned điểm được cộng vào leaderboard
-     * @return true nếu thành công
+     * Save Maze game result to database
+     * @param username player name
+     * @param score score
+     * @param coinsCollected coins collected
+     * @param won whether player won
+     * @param pointsEarned points added to leaderboard
+     * @return true if successful
      */
     public boolean saveMazeGameResult(String username, int score, int coinsCollected, boolean won, int pointsEarned) {
         Connection conn = DatabaseConnection.getConnection();
         if (conn == null) return false;
         
         try {
-            // Tạo bảng nếu chưa tồn tại
+            // Create table if not exists
             createGameHistoryTableIfNotExists(conn);
             
             String query = "INSERT INTO game_history (username, game_mode, score, coins_collected, won, points_earned, played_at) " +
@@ -81,7 +81,7 @@ public class GameHistoryDAO {
             int rows = stmt.executeUpdate();
             stmt.close();
             
-            // Cập nhật thống kê Maze
+            // Update Maze stats
             updateMazeStats(conn, username, score, coinsCollected, won);
             
             return rows > 0;
@@ -94,7 +94,7 @@ public class GameHistoryDAO {
     }
     
     /**
-     * Tạo bảng game_history nếu chưa tồn tại
+     * Create game_history table if not exists
      */
     private void createGameHistoryTableIfNotExists(Connection conn) throws SQLException {
         String createTableQuery = 
@@ -115,7 +115,7 @@ public class GameHistoryDAO {
         stmt.executeUpdate();
         stmt.close();
         
-        // Tạo bảng player_stats nếu chưa tồn tại
+        // Create player_stats table if not exists
         String createStatsQuery = 
             "CREATE TABLE IF NOT EXISTS player_stats (" +
             "  username VARCHAR(50) PRIMARY KEY," +
@@ -136,7 +136,7 @@ public class GameHistoryDAO {
     }
     
     /**
-     * Cập nhật thống kê PvP cho người chơi
+     * Update PvP stats for player
      */
     private void updatePvpStats(Connection conn, String username, int goldEarned, int kills) throws SQLException {
         // Kiểm tra xem đã có record chưa
@@ -181,10 +181,10 @@ public class GameHistoryDAO {
     }
     
     /**
-     * Cập nhật thống kê Maze cho người chơi
+     * Update Maze stats for player
      */
     private void updateMazeStats(Connection conn, String username, int score, int coinsCollected, boolean won) throws SQLException {
-        // Kiểm tra xem đã có record chưa
+        // Check if record already exists
         String checkQuery = "SELECT * FROM player_stats WHERE username = ?";
         PreparedStatement checkStmt = conn.prepareStatement(checkQuery);
         checkStmt.setString(1, username);
@@ -229,7 +229,7 @@ public class GameHistoryDAO {
     }
     
     /**
-     * Lấy thống kê của người chơi
+     * Get player stats
      */
     public String getPlayerStats(String username) {
         Connection conn = DatabaseConnection.getConnection();
@@ -267,7 +267,7 @@ public class GameHistoryDAO {
     }
     
     /**
-     * Lấy top 10 điểm cao nhất theo game mode
+     * Get top 10 highest scores by game mode
      */
     public String getTopScores(String gameMode, int limit) {
         Connection conn = DatabaseConnection.getConnection();

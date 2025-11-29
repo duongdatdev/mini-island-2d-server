@@ -181,14 +181,33 @@ public class WebSocketGameServer extends WebSocketServer {
         
         // Store the authenticated username for this connection
         connectionAuthMap.put(conn, username);
+        
+        // Auto-give default skin to user if they don't have any
+        shopDAO.giveDefaultSkin(username);
 
         sendToClient(conn, protocol.IDPacket(playerOnline.size() + 1, username));
+        
+        // Get player's equipped skin
+        String equippedSkin = shopDAO.getEquippedSkin(username);
+        
+        // Send NewClient with skin info to other players
         broadcastMessage(protocol.NewClientPacket(username, defaultX, defaultY, -1, playerOnline.size() + 1, "lobby"));
+        
+        // Broadcast new player's skin so other players can see it
+        broadcastMessage("ChangeSkin," + username + "," + equippedSkin);
 
         System.out.println(protocol.leaderBoardPacket(playerService.leaderBoard()));
         sendToClient(conn, protocol.leaderBoardPacket(playerService.leaderBoard()));
 
         sendAllClientsInMap(conn, "lobby");
+        
+        // Send other players' skins to the new player
+        for (ClientInfo player : playerOnline) {
+            if (player != null && !player.getUsername().equals(username)) {
+                String playerSkin = shopDAO.getEquippedSkin(player.getUsername());
+                sendToClient(conn, "ChangeSkin," + player.getUsername() + "," + playerSkin);
+            }
+        }
 
         playerOnline.add(new ClientInfo(conn, username, defaultX, defaultY, -1, "lobby"));
     }
@@ -339,7 +358,7 @@ public class WebSocketGameServer extends WebSocketServer {
     }
     
     /**
-     * Xử lý khi kết thúc Score Battle - cộng điểm vào leaderboard và lưu database
+     * Handle Score Battle end - add points to leaderboard and save to database
      */
     private void handleScoreBattleEnd(WebSocket conn, String sentence) {
         String[] parts = sentence.split(",");
@@ -347,21 +366,33 @@ public class WebSocketGameServer extends WebSocketServer {
         int finalScore = Integer.parseInt(parts[2]);
         int kills = parts.length > 3 ? Integer.parseInt(parts[3]) : 0;
         
-        // Tính điểm cộng vào leaderboard (ví dụ: 10% số gold kiếm được)
+        // Calculate points to add to leaderboard (10% of gold earned)
         int pointsToAdd = finalScore / 10;
+        
+        // Calculate coins to add (gold earned + kill bonus)
+        int coinsToAdd = finalScore + (kills * 5); // Full gold earned + 5 coins per kill
+        
         if (pointsToAdd > 0) {
             playerService.updatePoint(username, pointsToAdd);
-            
-            // Lưu vào database
-            gameHistoryDAO.savePvpGameResult(username, finalScore, kills, pointsToAdd);
-            
-            System.out.println("ScoreBattle End - " + username + " earned " + pointsToAdd + " points (from " + finalScore + " gold, " + kills + " kills) - SAVED TO DB");
-            sendLeaderBoardToAllClient();
         }
+        
+        // Always add coins if player earned any
+        if (coinsToAdd > 0) {
+            shopDAO.addCoins(username, coinsToAdd);
+        }
+        
+        // Save to database
+        gameHistoryDAO.savePvpGameResult(username, finalScore, kills, pointsToAdd);
+        
+        System.out.println("ScoreBattle End - " + username + ": +" + pointsToAdd + " points, +" + coinsToAdd + " coins (from " + finalScore + " gold, " + kills + " kills)");
+        sendLeaderBoardToAllClient();
+        
+        // Send updated coin balance to client
+        sendToClient(conn, protocol.playerCoinsPacket(shopDAO.getPlayerCoins(username)));
     }
     
     /**
-     * Xử lý khi kết thúc Maze - cộng điểm vào leaderboard và lưu database
+     * Handle Maze end - add points to leaderboard and save to database
      */
     private void handleMazeEnd(WebSocket conn, String sentence) {
         String[] parts = sentence.split(",");
@@ -370,21 +401,35 @@ public class WebSocketGameServer extends WebSocketServer {
         int coinsCollected = Integer.parseInt(parts[3]);
         boolean won = parts[4].equals("1");
         
-        // Tính điểm: thắng +50, điểm từ coins (5% số score)
+        // Calculate points: win +50, points from score (5% of score)
         int pointsToAdd = score / 20;
         if (won) {
-            pointsToAdd += 50; // Bonus khi thắng maze
+            pointsToAdd += 50; // Bonus for winning maze
+        }
+        
+        // Calculate coins: collected coins + win bonus
+        int coinsToAdd = coinsCollected;
+        if (won) {
+            coinsToAdd += 25; // Bonus coins for winning
         }
         
         if (pointsToAdd > 0) {
             playerService.updatePoint(username, pointsToAdd);
-            
-            // Lưu vào database
-            gameHistoryDAO.saveMazeGameResult(username, score, coinsCollected, won, pointsToAdd);
-            
-            System.out.println("Maze End - " + username + " earned " + pointsToAdd + " points (score: " + score + ", coins: " + coinsCollected + ", won: " + won + ") - SAVED TO DB");
-            sendLeaderBoardToAllClient();
         }
+        
+        // Always add coins if player earned any
+        if (coinsToAdd > 0) {
+            shopDAO.addCoins(username, coinsToAdd);
+        }
+        
+        // Save to database
+        gameHistoryDAO.saveMazeGameResult(username, score, coinsCollected, won, pointsToAdd);
+        
+        System.out.println("Maze End - " + username + ": +" + pointsToAdd + " points, +" + coinsToAdd + " coins (score: " + score + ", coins: " + coinsCollected + ", won: " + won + ")");
+        sendLeaderBoardToAllClient();
+        
+        // Send updated coin balance to client
+        sendToClient(conn, protocol.playerCoinsPacket(shopDAO.getPlayerCoins(username)));
     }
 
     private void handleGetItems(WebSocket conn) {
@@ -561,7 +606,7 @@ public class WebSocketGameServer extends WebSocketServer {
                         int newBalance = shopDAO.getPlayerCoins(username);
                         sendToClient(conn, protocol.buyResultPacket(success, message, newBalance));
                         
-                        // Nếu mua thành công, gửi lại danh sách skins của player
+                        // If purchase successful, send updated player skins list
                         if (success) {
                             List<ShopDAO.PlayerSkin> playerSkins = shopDAO.getPlayerSkins(username);
                             sendToClient(conn, protocol.playerSkinsPacket(playerSkins));

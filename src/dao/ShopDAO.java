@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * DAO để quản lý Shop Skins
+ * DAO for managing Shop Skins
  */
 public class ShopDAO {
     
@@ -19,14 +19,14 @@ public class ShopDAO {
     }
     
     /**
-     * Khởi tạo bảng skins
+     * Initialize skins tables
      */
     public void initializeTables() {
         Connection conn = DatabaseConnection.getConnection();
         if (conn == null) return;
         
         try {
-            // Tạo bảng skins
+            // Create skins table
             String createSkinsTable = 
                 "CREATE TABLE IF NOT EXISTS skins (" +
                 "  id INT AUTO_INCREMENT PRIMARY KEY," +
@@ -41,7 +41,7 @@ public class ShopDAO {
             stmt.executeUpdate();
             stmt.close();
             
-            // Tạo bảng player_skins
+            // Create player_skins table
             String createPlayerSkinsTable = 
                 "CREATE TABLE IF NOT EXISTS player_skins (" +
                 "  id INT AUTO_INCREMENT PRIMARY KEY," +
@@ -55,7 +55,7 @@ public class ShopDAO {
             stmt.executeUpdate();
             stmt.close();
             
-            // Thêm cột coins vào users nếu chưa có
+            // Add coins column to users if not exists
             try {
                 String addCoinsColumn = "ALTER TABLE users ADD COLUMN coins INT DEFAULT 100";
                 stmt = conn.prepareStatement(addCoinsColumn);
@@ -90,7 +90,7 @@ public class ShopDAO {
         String insertQuery = "INSERT INTO skins (name, description, price, skin_folder, is_default) VALUES (?, ?, ?, ?, ?)";
         PreparedStatement stmt = conn.prepareStatement(insertQuery);
         
-        // Skins có sẵn
+        // Available skins
         addSkin(stmt, "Default Hero", "The classic adventurer", 0, "1", true);
         addSkin(stmt, "Blue Warrior", "A brave warrior in blue", 100, "2", false);
         
@@ -114,7 +114,7 @@ public class ShopDAO {
     }
     
     /**
-     * Lấy tất cả skins
+     * Get all skins
      */
     public List<SkinItem> getAllSkins() {
         List<SkinItem> skins = new ArrayList<>();
@@ -149,7 +149,7 @@ public class ShopDAO {
     }
     
     /**
-     * Lấy coins của người chơi
+     * Get player's coins
      */
     public int getPlayerCoins(String username) {
         Connection conn = DatabaseConnection.getConnection();
@@ -180,14 +180,45 @@ public class ShopDAO {
     }
     
     /**
-     * Mua skin
+     * Add coins to player's balance
+     * @param username player's username
+     * @param amount amount to add (can be negative to deduct)
+     * @return true if successful
+     */
+    public boolean addCoins(String username, int amount) {
+        Connection conn = DatabaseConnection.getConnection();
+        if (conn == null) return false;
+        
+        try {
+            String query = "UPDATE users SET coins = coins + ? WHERE username = ?";
+            PreparedStatement stmt = conn.prepareStatement(query);
+            stmt.setInt(1, amount);
+            stmt.setString(2, username);
+            int rows = stmt.executeUpdate();
+            stmt.close();
+            
+            if (rows > 0) {
+                System.out.println("Added " + amount + " coins to " + username + " (new balance: " + getPlayerCoins(username) + ")");
+                return true;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            try { conn.close(); } catch (SQLException e) { e.printStackTrace(); }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Buy a skin
      */
     public String buySkin(String username, int skinId) {
         Connection conn = DatabaseConnection.getConnection();
         if (conn == null) return "Error|Database error";
         
         try {
-            // Lấy thông tin skin
+            // Get skin info
             String skinQuery = "SELECT * FROM skins WHERE id = ? AND is_active = TRUE";
             PreparedStatement skinStmt = conn.prepareStatement(skinQuery);
             skinStmt.setInt(1, skinId);
@@ -205,12 +236,12 @@ public class ShopDAO {
             skinRs.close();
             skinStmt.close();
             
-            // Check skin có sẵn không (folder 1, 2)
+            // Check if skin is available (folder 1, 2)
             if (!skinFolder.equals("1") && !skinFolder.equals("2")) {
                 return "Error|Coming soon!";
             }
             
-            // Check đã có chưa
+            // Check if already owned
             String ownQuery = "SELECT * FROM player_skins WHERE username = ? AND skin_id = ?";
             PreparedStatement ownStmt = conn.prepareStatement(ownQuery);
             ownStmt.setString(1, username);
@@ -231,7 +262,7 @@ public class ShopDAO {
                 return "Error|Not enough coins";
             }
             
-            // Trừ coins
+            // Deduct coins
             String deductQuery = "UPDATE users SET coins = coins - ? WHERE username = ?";
             PreparedStatement deductStmt = conn.prepareStatement(deductQuery);
             deductStmt.setInt(1, price);
@@ -239,7 +270,7 @@ public class ShopDAO {
             deductStmt.executeUpdate();
             deductStmt.close();
             
-            // Thêm skin
+            // Add skin to player
             String insertQuery = "INSERT INTO player_skins (username, skin_id) VALUES (?, ?)";
             PreparedStatement insertStmt = conn.prepareStatement(insertQuery);
             insertStmt.setString(1, username);
@@ -258,7 +289,7 @@ public class ShopDAO {
     }
     
     /**
-     * Lấy skins của người chơi
+     * Get player's owned skins
      */
     public List<PlayerSkin> getPlayerSkins(String username) {
         List<PlayerSkin> skins = new ArrayList<>();
@@ -295,14 +326,14 @@ public class ShopDAO {
     }
     
     /**
-     * Equip skin - trả về skin folder
+     * Equip skin - returns skin folder
      */
     public String equipSkin(String username, int skinId) {
         Connection conn = DatabaseConnection.getConnection();
         if (conn == null) return "Error|Database error";
         
         try {
-            // Check có skin không
+            // Check if player owns the skin
             String checkQuery = "SELECT s.skin_folder FROM player_skins ps " +
                 "JOIN skins s ON ps.skin_id = s.id " +
                 "WHERE ps.username = ? AND ps.skin_id = ?";
@@ -320,14 +351,14 @@ public class ShopDAO {
             checkRs.close();
             checkStmt.close();
             
-            // Unequip all
+            // Unequip all skins
             String unequipQuery = "UPDATE player_skins SET is_equipped = FALSE WHERE username = ?";
             PreparedStatement unequipStmt = conn.prepareStatement(unequipQuery);
             unequipStmt.setString(1, username);
             unequipStmt.executeUpdate();
             unequipStmt.close();
             
-            // Equip này
+            // Equip selected skin
             String equipQuery = "UPDATE player_skins SET is_equipped = TRUE WHERE username = ? AND skin_id = ?";
             PreparedStatement equipStmt = conn.prepareStatement(equipQuery);
             equipStmt.setString(1, username);
@@ -346,7 +377,7 @@ public class ShopDAO {
     }
     
     /**
-     * Lấy skin đang equip
+     * Get currently equipped skin
      */
     public String getEquippedSkin(String username) {
         Connection conn = DatabaseConnection.getConnection();
@@ -379,13 +410,66 @@ public class ShopDAO {
     }
     
     /**
-     * Tặng default skin cho user mới
+     * Give default skin to new user (only if they don't have any skin)
+     * Also fixes bug if multiple skins are equipped
      */
     public void giveDefaultSkin(String username) {
         Connection conn = DatabaseConnection.getConnection();
         if (conn == null) return;
         
         try {
+            // Check if user already has skins
+            String checkQuery = "SELECT COUNT(*) FROM player_skins WHERE username = ?";
+            PreparedStatement checkStmt = conn.prepareStatement(checkQuery);
+            checkStmt.setString(1, username);
+            ResultSet checkRs = checkStmt.executeQuery();
+            checkRs.next();
+            int skinCount = checkRs.getInt(1);
+            checkRs.close();
+            checkStmt.close();
+            
+            // If user has skins, check and fix multiple equipped skins bug
+            if (skinCount > 0) {
+                // Count equipped skins
+                String countEquippedQuery = "SELECT COUNT(*) FROM player_skins WHERE username = ? AND is_equipped = TRUE";
+                PreparedStatement countStmt = conn.prepareStatement(countEquippedQuery);
+                countStmt.setString(1, username);
+                ResultSet countRs = countStmt.executeQuery();
+                countRs.next();
+                int equippedCount = countRs.getInt(1);
+                countRs.close();
+                countStmt.close();
+                
+                // If more than 1 skin is equipped, fix it
+                if (equippedCount > 1) {
+                    // Unequip all
+                    String unequipAllQuery = "UPDATE player_skins SET is_equipped = FALSE WHERE username = ?";
+                    PreparedStatement unequipStmt = conn.prepareStatement(unequipAllQuery);
+                    unequipStmt.setString(1, username);
+                    unequipStmt.executeUpdate();
+                    unequipStmt.close();
+                    
+                    // Equip first skin (lowest id)
+                    String equipFirstQuery = "UPDATE player_skins SET is_equipped = TRUE WHERE username = ? ORDER BY skin_id ASC LIMIT 1";
+                    PreparedStatement equipStmt = conn.prepareStatement(equipFirstQuery);
+                    equipStmt.setString(1, username);
+                    equipStmt.executeUpdate();
+                    equipStmt.close();
+                    
+                    System.out.println("Fixed multiple equipped skins for user: " + username);
+                }
+                // If no skin is equipped, equip the first one
+                else if (equippedCount == 0) {
+                    String equipFirstQuery = "UPDATE player_skins SET is_equipped = TRUE WHERE username = ? ORDER BY skin_id ASC LIMIT 1";
+                    PreparedStatement equipStmt = conn.prepareStatement(equipFirstQuery);
+                    equipStmt.setString(1, username);
+                    equipStmt.executeUpdate();
+                    equipStmt.close();
+                }
+                
+                return;
+            }
+            
             String query = "SELECT id FROM skins WHERE is_default = TRUE LIMIT 1";
             PreparedStatement stmt = conn.prepareStatement(query);
             ResultSet rs = stmt.executeQuery();
@@ -395,7 +479,7 @@ public class ShopDAO {
                 rs.close();
                 stmt.close();
                 
-                String insert = "INSERT IGNORE INTO player_skins (username, skin_id, is_equipped) VALUES (?, ?, TRUE)";
+                String insert = "INSERT INTO player_skins (username, skin_id, is_equipped) VALUES (?, ?, TRUE)";
                 PreparedStatement insertStmt = conn.prepareStatement(insert);
                 insertStmt.setString(1, username);
                 insertStmt.setInt(2, skinId);
