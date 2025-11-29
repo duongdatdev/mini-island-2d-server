@@ -16,6 +16,7 @@ server\ServerGUI.class
 service\PlayerService.class
 dao\PlayerDAOImp.class
 server\WebSocketGameServer.class
+dao\GameHistoryDAO.class
 server\Protocol.class
 testShop\server\ShopServer.class
 server\ClientInfo.class

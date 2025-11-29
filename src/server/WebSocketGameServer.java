@@ -1,5 +1,6 @@
 package server;
 
+import dao.GameHistoryDAO;
 import map.MazeGen;
 import service.PlayerService;
 import org.java_websocket.WebSocket;
@@ -24,6 +25,7 @@ public class WebSocketGameServer extends WebSocketServer {
     private Map<WebSocket, String> connectionAuthMap; // Track authentication per connection
     private Protocol protocol;
     private PlayerService playerService;
+    private GameHistoryDAO gameHistoryDAO;
 
     //Maze gen
     private MazeGen mazeGen = new MazeGen(10, 20);
@@ -35,6 +37,7 @@ public class WebSocketGameServer extends WebSocketServer {
         connectionAuthMap = new HashMap<>();
         protocol = new Protocol();
         playerService = new PlayerService();
+        gameHistoryDAO = new GameHistoryDAO();
     }
 
     @Override
@@ -117,6 +120,10 @@ public class WebSocketGameServer extends WebSocketServer {
             handleGetItems(conn);
         } else if (sentence.startsWith("BUY_ITEM")) {
             handleBuyItem(conn, sentence);
+        } else if (sentence.startsWith("ScoreBattleEnd")) {
+            handleScoreBattleEnd(conn, sentence);
+        } else if (sentence.startsWith("MazeEnd")) {
+            handleMazeEnd(conn, sentence);
         }
     }
 
@@ -324,6 +331,55 @@ public class WebSocketGameServer extends WebSocketServer {
     private void handleExitAuth(WebSocket conn) {
         connectionAuthMap.remove(conn);
         conn.close();
+    }
+    
+    /**
+     * Xử lý khi kết thúc Score Battle - cộng điểm vào leaderboard và lưu database
+     */
+    private void handleScoreBattleEnd(WebSocket conn, String sentence) {
+        String[] parts = sentence.split(",");
+        String username = parts[1];
+        int finalScore = Integer.parseInt(parts[2]);
+        int kills = parts.length > 3 ? Integer.parseInt(parts[3]) : 0;
+        
+        // Tính điểm cộng vào leaderboard (ví dụ: 10% số gold kiếm được)
+        int pointsToAdd = finalScore / 10;
+        if (pointsToAdd > 0) {
+            playerService.updatePoint(username, pointsToAdd);
+            
+            // Lưu vào database
+            gameHistoryDAO.savePvpGameResult(username, finalScore, kills, pointsToAdd);
+            
+            System.out.println("ScoreBattle End - " + username + " earned " + pointsToAdd + " points (from " + finalScore + " gold, " + kills + " kills) - SAVED TO DB");
+            sendLeaderBoardToAllClient();
+        }
+    }
+    
+    /**
+     * Xử lý khi kết thúc Maze - cộng điểm vào leaderboard và lưu database
+     */
+    private void handleMazeEnd(WebSocket conn, String sentence) {
+        String[] parts = sentence.split(",");
+        String username = parts[1];
+        int score = Integer.parseInt(parts[2]);
+        int coinsCollected = Integer.parseInt(parts[3]);
+        boolean won = parts[4].equals("1");
+        
+        // Tính điểm: thắng +50, điểm từ coins (5% số score)
+        int pointsToAdd = score / 20;
+        if (won) {
+            pointsToAdd += 50; // Bonus khi thắng maze
+        }
+        
+        if (pointsToAdd > 0) {
+            playerService.updatePoint(username, pointsToAdd);
+            
+            // Lưu vào database
+            gameHistoryDAO.saveMazeGameResult(username, score, coinsCollected, won, pointsToAdd);
+            
+            System.out.println("Maze End - " + username + " earned " + pointsToAdd + " points (score: " + score + ", coins: " + coinsCollected + ", won: " + won + ") - SAVED TO DB");
+            sendLeaderBoardToAllClient();
+        }
     }
 
     private void handleGetItems(WebSocket conn) {
