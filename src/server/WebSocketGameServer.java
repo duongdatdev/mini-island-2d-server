@@ -1,6 +1,7 @@
 package server;
 
 import dao.GameHistoryDAO;
+import dao.ShopDAO;
 import map.MazeGen;
 import service.PlayerService;
 import org.java_websocket.WebSocket;
@@ -26,6 +27,7 @@ public class WebSocketGameServer extends WebSocketServer {
     private Protocol protocol;
     private PlayerService playerService;
     private GameHistoryDAO gameHistoryDAO;
+    private ShopDAO shopDAO;
 
     //Maze gen
     private MazeGen mazeGen = new MazeGen(10, 20);
@@ -38,6 +40,7 @@ public class WebSocketGameServer extends WebSocketServer {
         protocol = new Protocol();
         playerService = new PlayerService();
         gameHistoryDAO = new GameHistoryDAO();
+        shopDAO = new ShopDAO();
     }
 
     @Override
@@ -124,6 +127,8 @@ public class WebSocketGameServer extends WebSocketServer {
             handleScoreBattleEnd(conn, sentence);
         } else if (sentence.startsWith("MazeEnd")) {
             handleMazeEnd(conn, sentence);
+        } else if (sentence.startsWith("Shop,")) {
+            handleShopRequest(conn, sentence);
         }
     }
 
@@ -516,5 +521,95 @@ public class WebSocketGameServer extends WebSocketServer {
 
     public void stopServer() throws IOException, InterruptedException {
         stop();
+    }
+
+    // Shop handling - Skin Shop
+    private void handleShopRequest(WebSocket conn, String sentence) {
+        String[] parts = sentence.split(",");
+        if (parts.length < 2) return;
+        
+        String action = parts[1];
+        String username = connectionAuthMap.get(conn);
+        
+        if (username == null) {
+            sendToClient(conn, "Shop,Error,Not logged in");
+            return;
+        }
+        
+        switch (action) {
+            case "GetSkins":
+                // Get all skins
+                List<ShopDAO.SkinItem> skins = shopDAO.getAllSkins();
+                sendToClient(conn, protocol.skinsListPacket(skins));
+                break;
+                
+            case "GetCoins":
+                // Get player's coins
+                int coins = shopDAO.getPlayerCoins(username);
+                sendToClient(conn, protocol.playerCoinsPacket(coins));
+                break;
+                
+            case "Buy":
+                // Buy a skin: Shop,Buy,skinId
+                if (parts.length >= 3) {
+                    try {
+                        int skinId = Integer.parseInt(parts[2]);
+                        String result = shopDAO.buySkin(username, skinId);
+                        String[] resultParts = result.split("\\|");
+                        boolean success = resultParts[0].equals("Success");
+                        String message = resultParts.length > 1 ? resultParts[1] : result;
+                        int newBalance = shopDAO.getPlayerCoins(username);
+                        sendToClient(conn, protocol.buyResultPacket(success, message, newBalance));
+                        
+                        // Nếu mua thành công, gửi lại danh sách skins của player
+                        if (success) {
+                            List<ShopDAO.PlayerSkin> playerSkins = shopDAO.getPlayerSkins(username);
+                            sendToClient(conn, protocol.playerSkinsPacket(playerSkins));
+                        }
+                    } catch (NumberFormatException e) {
+                        sendToClient(conn, protocol.buyResultPacket(false, "Invalid skin ID", 0));
+                    }
+                }
+                break;
+                
+            case "GetMySkins":
+                // Get player's owned skins
+                List<ShopDAO.PlayerSkin> playerSkins = shopDAO.getPlayerSkins(username);
+                sendToClient(conn, protocol.playerSkinsPacket(playerSkins));
+                break;
+                
+            case "Equip":
+                // Equip skin: Shop,Equip,skinId
+                if (parts.length >= 3) {
+                    try {
+                        int skinId = Integer.parseInt(parts[2]);
+                        String result = shopDAO.equipSkin(username, skinId);
+                        String[] resultParts = result.split("\\|");
+                        boolean success = resultParts[0].equals("Success");
+                        
+                        if (success) {
+                            String skinFolder = resultParts[1];
+                            sendToClient(conn, protocol.equippedSkinPacket(skinFolder));
+                            // Broadcast to others that this player changed skin
+                            broadcastMessage("ChangeSkin," + username + "," + skinFolder);
+                        } else {
+                            sendToClient(conn, "Shop,Error," + resultParts[1]);
+                        }
+                    } catch (NumberFormatException e) {
+                        sendToClient(conn, "Shop,Error,Invalid skin ID");
+                    }
+                }
+                break;
+                
+            case "GetEquipped":
+                // Get equipped skin folder
+                String equippedFolder = shopDAO.getEquippedSkin(username);
+                sendToClient(conn, protocol.equippedSkinPacket(equippedFolder));
+                break;
+                
+            default:
+                sendToClient(conn, "Shop,Error,Unknown action");
+                break;
+        }
     }
 }

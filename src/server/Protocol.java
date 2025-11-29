@@ -111,4 +111,49 @@ public class Protocol {
         message = "Exit" + username;
         return message;
     }
+    
+    // ============== Skin Shop Protocols ==============
+    
+    /**
+     * Gửi danh sách skins trong shop
+     */
+    public String skinsListPacket(java.util.List<dao.ShopDAO.SkinItem> skins) {
+        StringBuilder sb = new StringBuilder("SkinsList");
+        for (dao.ShopDAO.SkinItem skin : skins) {
+            sb.append(",").append(skin.toProtocolString());
+        }
+        return sb.toString();
+    }
+    
+    /**
+     * Gửi coins của người chơi
+     */
+    public String playerCoinsPacket(int coins) {
+        return "PlayerCoins," + coins;
+    }
+    
+    /**
+     * Gửi kết quả mua skin
+     */
+    public String buyResultPacket(boolean success, String msg, int newBalance) {
+        return "BuyResult," + (success ? "success" : "failed") + "," + msg + "," + newBalance;
+    }
+    
+    /**
+     * Gửi danh sách skins của người chơi
+     */
+    public String playerSkinsPacket(java.util.List<dao.ShopDAO.PlayerSkin> skins) {
+        StringBuilder sb = new StringBuilder("PlayerSkins");
+        for (dao.ShopDAO.PlayerSkin skin : skins) {
+            sb.append(",").append(skin.toProtocolString());
+        }
+        return sb.toString();
+    }
+    
+    /**
+     * Gửi skin đang equip
+     */
+    public String equippedSkinPacket(String skinFolder) {
+        return "EquippedSkin," + skinFolder;
+    }
 }
